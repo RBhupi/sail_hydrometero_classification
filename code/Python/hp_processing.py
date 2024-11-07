@@ -120,14 +120,18 @@ def main():
     parser = argparse.ArgumentParser(description="Process radar files for a given year, month, and classification scheme")
     parser.add_argument("year", type=str, help="Year of the data (YYYY)")
     parser.add_argument("month", type=str, help="Month of the data (MM)")
+    parser.add_argument("--data_dir", type=str, default="/gpfs/wolf2/arm/atm124/world-shared/gucxprecipradarcmacS2.c1/ppi/",
+                         help="data directory without year month")
+    parser.add_argument("--output_dir", type=str, default= '/gpfs/wolf2/arm/atm124/proj-shared/HydroPhase/',
+                        help="outputdirectory without year month")
     parser.add_argument("--season", type=str, choices=['summer', 'winter'], required=True, help="CSU classification scheme to use (summer or winter)")
     parser.add_argument("--rerun", action='store_true', help="If set, process all files again (even if already processed)")
 
     args = parser.parse_args()
     year, month, season, rerun = args.year, args.month, args.season, args.rerun
-    base_path = "/gpfs/wolf2/arm/atm124/world-shared/gucxprecipradarcmacS2.c1/ppi/"
+    base_path = args.data_dir
     files = sorted(glob.glob(f"{base_path}{year}{month}/gucxprecipradarcmacppiS2.c1.{year}{month}*.nc"))
-    output_dir = f'/gpfs/wolf2/arm/atm124/proj-shared/HydroPhase/{year}{month}'
+    output_dir = f'{args.output_dir}{year}{month}'
     files_to_process = files if rerun else unprocessed_files(files, output_dir)
     if files_to_process:
         process_files(files_to_process, year, month, season, output_dir)
