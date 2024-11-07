@@ -31,20 +31,15 @@ for month in "${months[@]}"; do
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
-#SBATCH --time=20:00:00
+#SBATCH --time=1:00:00
 #SBATCH --account=ATM124
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=braut@anl.gov
 
-# Load modules and activate environment
+# Load modules and activate conda (this is causing error sometimes)
 module load python/3.7-anaconda3
-source /ccsopen/home/braut/analysis-env2/bin/activate
+source /ccsopen/home/braut/analysis-env2
 
 # Run the script 
 /ccsopen/home/braut/analysis-env2/bin/python /ccsopen/home/braut/hclass/code/Python/hp_processing.py "$year" "$month_padded" --data_dir "$data_dir" --output_dir "$output_dir" --season "$season"
-
-# Deactivate the conda environment
-conda deactivate
 EOF
 
 done
