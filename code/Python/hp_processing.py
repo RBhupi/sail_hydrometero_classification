@@ -37,6 +37,7 @@ def read_radar(file, sweep=None):
 
 
 def classify_summer(radar):
+    logging.info("Running CSU Summer classification")
     dbz = radar.fields['corrected_reflectivity']['data']
     zdr = radar.fields['corrected_differential_reflectivity']['data']
     kdp = radar.fields['corrected_specific_diff_phase']['data']
@@ -46,6 +47,7 @@ def classify_summer(radar):
     return csu_summer_to_hp[scores]
 
 def classify_winter(radar):
+    logging.info("Running CSU Winter classification")
     dz = np.ma.masked_array(radar.fields['DBZ']['data'])
     zdr = np.ma.masked_array(radar.fields['ZDR']['data'])
     kd = np.ma.masked_array(radar.fields['PHIDP']['data'])
@@ -62,6 +64,7 @@ def classify_winter(radar):
     return csu_winter_to_hp[hcawinter]
 
 def classify_pyart(radar):
+    logging.info("Running Py-ART classification")
     radar.instrument_parameters['frequency'] = {'long_name': 'Radar frequency', 'units': 'Hz', 'data': [9.2e9]}
     hydromet_class = pyart.retrieve.hydroclass_semisupervised(
         radar,
@@ -74,6 +77,7 @@ def classify_pyart(radar):
     return pyart_to_hp[hydromet_class['data']]
 
 def add_classification_to_radar(classified_data, radar, field_name, description):
+    logging.info(f"Adding field: {field_name} to radar obj")
     fill_value = -32768
     masked_data = np.ma.asanyarray(classified_data)
     masked_data.mask = masked_data == fill_value
@@ -104,6 +108,7 @@ def process_files(files, year, month, scheme, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     setup_logging(output_dir)
     for file in files:
+        logging.info(f"Processing file: {file} with scheme={scheme}")
         radar = read_radar(file)
         if scheme == 'summer':
             add_classification_to_radar(classify_summer(radar), radar, 'hp_fhc_summer', 'HydroPhase from CSU Summer')
@@ -113,6 +118,7 @@ def process_files(files, year, month, scheme, output_dir):
         filter_fields(radar)
         output_file = os.path.join(output_dir, os.path.basename(file).replace('gucxprecipradarcmacppiS2.c1', 'gucxprecipradarcmacppihpS2.c1'))
         pyart.io.write_cfradial(output_file, radar, format='NETCDF4')
+        logging.info(f"Saved file to {output_file}")
         del radar
         gc.collect()
 
@@ -133,6 +139,11 @@ def main():
     files = sorted(glob.glob(f"{base_path}{year}{month}/gucxprecipradarcmacppiS2.c1.{year}{month}*.nc"))
     output_dir = f'{args.output_dir}{year}{month}'
     files_to_process = files if rerun else unprocessed_files(files, output_dir)
+
+    logging.info(f"Starting processing for year={year}, month={month}, season={season}")
+    logging.info(f"Found {len(files_to_process)} files to process.")
+
+
     if files_to_process:
         process_files(files_to_process, year, month, season, output_dir)
     else:
