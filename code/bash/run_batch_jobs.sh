@@ -1,11 +1,11 @@
 #!/bin/bash
 
 year=2022  
-months=(1 8) #(1 2 3 4 5 6)  # months to process
+months=(2 3 4 5 7 9 10 11 12)  # months to process
 data_dir="/gpfs/wolf2/arm/atm124/world-shared/gucxprecipradarcmacS2.c1/ppi/"
 output_dir="/gpfs/wolf2/arm/atm124/proj-shared/HydroPhase/"
 
-job_name="hp_processing"
+job_name="hp"
 output_log_dir="${output_dir}/logs"
 mkdir -p "$output_log_dir"
 
@@ -24,14 +24,14 @@ for month in "${months[@]}"; do
     # job submission command
     sbatch <<EOF
 #!/bin/bash
-#SBATCH --job-name=${job_name}_${year}_${month_padded}
+#SBATCH --job-name=${job_name}${year}${month}
 #SBATCH --output=${output_log_dir}/${job_name}_${year}_${month_padded}_%j.out
 #SBATCH --error=${output_log_dir}/${job_name}_${year}_${month_padded}_%j.err
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=32G
-#SBATCH --time=1:00:00
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=16G
+#SBATCH --time=48:00:00
 #SBATCH --account=ATM124
 
 # Load modules and activate conda (this is causing error sometimes)
@@ -40,6 +40,7 @@ source /ccsopen/home/braut/analysis-env2
 
 # Run the script 
 /ccsopen/home/braut/analysis-env2/bin/python /ccsopen/home/braut/hclass/code/Python/hp_processing.py "$year" "$month_padded" --data_dir "$data_dir" --output_dir "$output_dir" --season "$season"
+
 EOF
 
 done

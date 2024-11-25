@@ -136,7 +136,7 @@ def main():
     args = parser.parse_args()
     year, month, season, rerun = args.year, args.month, args.season, args.rerun
     base_path = args.data_dir
-    files = sorted(glob.glob(f"{base_path}{year}{month}/gucxprecipradarcmacppiS2.c1.{year}{month}*.nc"))
+    files = sorted(glob.glob(f"{base_path}{year}{month}/gucxprecipradarcmacppiS2.c1.*.nc"))
     output_dir = f'{args.output_dir}{year}{month}'
     files_to_process = files if rerun else unprocessed_files(files, output_dir)
 
