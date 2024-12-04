@@ -1,7 +1,7 @@
 #!/bin/bash
 
 year=2022  
-months=(2 3 4 5 7 9 10 11 12)  # months to process
+months=(1 2 3 4 5 6 7 8 9 10 11 12)  # months to process
 data_dir="/gpfs/wolf2/arm/atm124/world-shared/gucxprecipradarcmacS2.c1/ppi/"
 output_dir="/gpfs/wolf2/arm/atm124/proj-shared/HydroPhase/"
 
@@ -24,7 +24,7 @@ for month in "${months[@]}"; do
     # job submission command
     sbatch <<EOF
 #!/bin/bash
-#SBATCH --job-name=${job_name}${year}${month}
+#SBATCH --job-name=${job_name}${year}${month_padded}
 #SBATCH --output=${output_log_dir}/${job_name}_${year}_${month_padded}_%j.out
 #SBATCH --error=${output_log_dir}/${job_name}_${year}_${month_padded}_%j.err
 #SBATCH --ntasks=1
