@@ -104,6 +104,53 @@ def filter_fields(radar):
     radar.fields = {k: radar.fields[k] for k in fields if k in radar.fields}
     return radar
 
+
+# taken from MAx's script for gridding for Squire
+def grid_radar(radar,
+               x_grid_limits=(-20_000.,20_000.),
+               y_grid_limits=(-20_000.,20_000.),
+               z_grid_limits = (500.,5_000.),
+               grid_resolution = 250,
+               
+               ):
+    """
+    Grid the radar using some provided parameters
+    """
+    
+    x_grid_points = compute_number_of_points(x_grid_limits, grid_resolution)
+    y_grid_points = compute_number_of_points(y_grid_limits, grid_resolution)
+    z_grid_points = compute_number_of_points(z_grid_limits, grid_resolution)
+    
+    grid = pyart.map.grid_from_radars(radar,
+                                      grid_shape=(z_grid_points,
+                                                  y_grid_points,
+                                                  x_grid_points),
+                                      grid_limits=(z_grid_limits,
+                                                   y_grid_limits,
+                                                   x_grid_limits),
+                                      method='nearest'
+                                     )
+    return grid.to_xarray()
+
+def subset_lowest_vertical_level(ds, additional_fields=["corrected_reflectivity"]):
+    """
+    Filter the dataset based on the lowest vertical level
+    """
+    snow_fields = [var for var in list(ds.variables) if "hp" in var] + additional_fields
+    
+    # Create a new 4-d height field
+    ds["height_expanded"] = (ds.z * (ds[hp_fields[0]]/ds[hp_fields[0]])).fillna(5_000)
+    
+    # Find the minimum height index
+    min_index = ds.height_expanded.argmin(dim='z',
+                                          skipna=True)
+    
+    # Subset our hp fields based on this new index
+    subset_ds = ds[hp_fields].isel(z=min_index)
+    
+    return subset_ds
+
+
 def process_files(files, year, month, scheme, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     setup_logging(output_dir)
@@ -116,8 +163,12 @@ def process_files(files, year, month, scheme, output_dir):
             add_classification_to_radar(classify_winter(radar), radar, 'hp_fhc_winter', 'HydroPhase from CSU Winter')
         add_classification_to_radar(classify_pyart(radar), radar, 'hp_semisupervised', 'HydroPhase from Py-ART')
         filter_fields(radar)
+
+        ds = grid_radar(radar)
+        out_ds = subset_lowest_vertical_level(ds)
+
         output_file = os.path.join(output_dir, os.path.basename(file).replace('gucxprecipradarcmacppiS2.c1', 'gucxprecipradarcmacppihpS2.c1'))
-        pyart.io.write_cfradial(output_file, radar, format='NETCDF4')
+        out_ds.to_netcdf(output_file)
         logging.info(f"Saved file to {output_file}")
         del radar
         gc.collect()
@@ -128,7 +179,7 @@ def main():
     parser.add_argument("month", type=str, help="Month of the data (MM)")
     parser.add_argument("--data_dir", type=str, default="/gpfs/wolf2/arm/atm124/world-shared/gucxprecipradarcmacS2.c1/ppi/",
                          help="data directory without year month")
-    parser.add_argument("--output_dir", type=str, default= '/gpfs/wolf2/arm/atm124/proj-shared/HydroPhase/',
+    parser.add_argument("--output_dir", type=str, default= '/gpfs/wolf2/arm/atm124/proj-shared/gucxprecipradarhpS2.c1/',
                         help="outputdirectory without year month")
     parser.add_argument("--season", type=str, choices=['summer', 'winter'], required=True, help="CSU classification scheme to use (summer or winter)")
     parser.add_argument("--rerun", action='store_true', help="If set, process all files again (even if already processed)")
@@ -142,7 +193,6 @@ def main():
 
     logging.info(f"Starting processing for year={year}, month={month}, season={season}")
     logging.info(f"Found {len(files_to_process)} files to process.")
-
 
 
     if files_to_process:
