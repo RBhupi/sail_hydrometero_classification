@@ -1,0 +1,3 @@
+The SAIL campaign (September 2021 - June 2023) in Crested Butte, Colorado, focused on understanding precipitation in the Upper Colorado River Basin, a key hydrological region. To support this, the Hyrometeor Classification was done for CSU X-band radar to improve snowfall observation and Quantitative Precipitation Estimates (QPE).
+
+Hydrometeor types from three algorithms (CSU Summer, CSU Winter, and Py-ART) were standardized into four categories: Liquid, Frozen (Snow and Ice), Frozen (Graupel and Hail), and Mixed (Wet Snow and Melting Hail). The output provides phase classification on the SQUIRE grid.
