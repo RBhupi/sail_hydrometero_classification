@@ -106,6 +106,14 @@ def filter_fields(radar):
 
 
 # taken from MAx's script for gridding for Squire
+# Setup a Helper Function and Configure our Grid
+def compute_number_of_points(extent, resolution):
+    """
+    Create a helper function to determine number of points
+    """
+    return int((extent[1] - extent[0])/resolution)
+
+
 def grid_radar(radar,
                x_grid_limits=(-20_000.,20_000.),
                y_grid_limits=(-20_000.,20_000.),
@@ -136,7 +144,7 @@ def subset_lowest_vertical_level(ds, additional_fields=["corrected_reflectivity"
     """
     Filter the dataset based on the lowest vertical level
     """
-    snow_fields = [var for var in list(ds.variables) if "hp" in var] + additional_fields
+    hp_fields = [var for var in list(ds.variables) if "hp" in var] + additional_fields
     
     # Create a new 4-d height field
     ds["height_expanded"] = (ds.z * (ds[hp_fields[0]]/ds[hp_fields[0]])).fillna(5_000)
@@ -166,11 +174,13 @@ def process_files(files, year, month, scheme, output_dir):
 
         ds = grid_radar(radar)
         out_ds = subset_lowest_vertical_level(ds)
+        print(out_ds)
 
         output_file = os.path.join(output_dir, os.path.basename(file).replace('gucxprecipradarcmacppiS2.c1', 'gucxprecipradarcmacppihpS2.c1'))
         out_ds.to_netcdf(output_file)
         logging.info(f"Saved file to {output_file}")
         del radar
+        del ds
         gc.collect()
 
 def main():
