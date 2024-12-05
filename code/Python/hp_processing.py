@@ -1,3 +1,9 @@
+"""
+This script processes CMAC processed radar PPI data using the HydroPhase (hp) methodology. It reads CMAC files,
+classifies the hydrometero ids using the PyART, CSU Summer and Winter classification schemes, and maps the results
+to HydroPhase categories. The processed data is then saved to output netcdf files.
+"""
+
 import pyart
 import glob
 import sys
