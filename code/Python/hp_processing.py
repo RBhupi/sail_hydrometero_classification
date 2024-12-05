@@ -162,6 +162,48 @@ def subset_lowest_vertical_level(ds, additional_fields=["corrected_reflectivity"
     return subset_ds
 
 
+def make_squire_grid(radar):
+    # Grid the radar data
+    ds = grid_radar(radar)
+    
+    # Subset the lowest vertical level
+    ds = subset_lowest_vertical_level(ds)
+    
+    # Update available fields
+    available_fields = list(ds.data_vars.keys())
+    ds.attrs['field_names'] = ', '.join(available_fields)
+    
+    # Update metadata
+    ds.attrs['radar_name'] = 'gucxprecipradar'
+    current_time = subprocess.check_output(['date'], encoding='utf-8').strip()  # Use `date` for system time
+    system_info = subprocess.check_output(['uname', '-n'], encoding='utf-8').strip()
+    ds.attrs['history'] = f"created by Bhupendra Raut on {current_time} on: {system_info}"
+    
+    ds.attrs['attributions'] = (
+        "This data is collected by the ARM Climate Research facility. Radar system is operated by the radar "
+        "engineering team radar@arm.gov and the data is processed by the precipitation radar products team."
+    )
+    ds.attrs['vap_name'] = 'hp'
+    ds.attrs['process_version'] = "HP v1.0"
+    ds.attrs['known_issues'] = (
+        "CMAC issues like, false phidp jumps, and some snow below melting layer, may affect classification. "
+        "The Semisupervised method and fuzzy logic methods do not agree very well near melting layer."
+    )
+    ds.attrs['input_datastream'] = 'xprecipradarcmacppi'
+    ds.attrs['developers'] = (
+        "Bhupendra Raut, ANL; Robert Jackson, ANL; Zachary Sherman, ANL; Maxwell Grover, ANL; Joseph OBrien, ANL"
+    )
+    ds.attrs['datastream'] = "gucxprecipradarhpS2.c1"
+    ds.attrs['platform_id'] = "xprecipradarhp"
+    ds.attrs['dod_version'] = "xprecipradarhp-c1-1.0"
+    ds.attrs['doi'] = "xxxxxx"
+    
+    # Add the command line used to run the script
+    ds.attrs['command_line'] = " ".join(sys.argv)
+    
+    return ds
+
+
 def process_files(files, year, month, scheme, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     setup_logging(output_dir)
@@ -175,28 +217,7 @@ def process_files(files, year, month, scheme, output_dir):
         add_classification_to_radar(classify_pyart(radar), radar, 'hp_semisupervised', 'HydroPhase from Py-ART')
         filter_fields(radar)
 
-        ds = grid_radar(radar)
-        out_ds = subset_lowest_vertical_level(ds)
-        # Ge tonly available fields
-        available_fields = list(out_ds.data_vars.keys())
-        out_ds.attrs['field_names'] = ', '.join(available_fields)
-
-        out_ds.attrs['radar_name'] = 'gucxprecipradar'
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        system_info = subprocess.check_output(['uname', '-n'], encoding='utf-8').strip()
-        out_ds.attrs['history'] = f"created by Bhupendra Raut on {current_time} on: {system_info}"
-
-        out_ds.attrs['attributions'] = "This data is collected by the ARM Climate Research facility. Radar system is operated by the radar engineering team radar@arm.gov and the data is processed by the precipitation radar products team."
-        out_ds.attrs['vap_name'] = 'hp'
-        out_ds.attrs['process_version'] = "HP v1.0"
-        out_ds.attrs['known_issues'] = 'CMAC issues like, false phidp jumps, and some snow below melting layer, may affect classification. The Semisupervised method and fussy logic methods do not agree very well near melting layer.'
-        out_ds.attrs['input_datastream'] = 'xprecipradarcmacppi'
-        out_ds.attrs['developers'] = "Bhupendra Raut, ANL; Robert Jackson, ANL; Zachary Sherman, ANL; Maxwell Grover, ANL; Joseph OBrien, ANL"
-        out_ds.attrs['datastream'] = "gucxprecipradarhpS2.c1"
-        out_ds.attrs['platform_id'] = "xprecipradarhp"
-        out_ds.attrs['dod_version'] = "xprecipradarhp-c1-1.0"
-        out_ds.attrs['doi'] = "xxxxxx"
-        out_ds.attrs['command_line'] = " ".join(sys.argv) # command that ran  the script.
+        out_ds = make_squire_grid(radar)
         output_file = os.path.join(output_dir, os.path.basename(file).replace('gucxprecipradarcmacppiS2.c1', 'gucxprecipradarcmacppihpS2.c1'))
         out_ds.to_netcdf(output_file)
         logging.info(f"Saved file to {output_file}")
