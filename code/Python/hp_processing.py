@@ -10,13 +10,48 @@ import subprocess
 from datetime import datetime
 from csu_radartools import csu_fhc
 
+# Constants
+INPUT_FILE_PATTERN = 'gucxprecipradarcmacppiS2.c1'
+OUTPUT_FILE_PATTERN = 'gucxprecipradarcmacppihpS2.c1'
+LOG_FILE_NAME = "hp_processing.log"
+FILL_VALUE = -32768
+FILTER_FIELDS = ['corrected_reflectivity', 'corrected_differential_reflectivity',
+                 'corrected_specific_diff_phase', 'RHOHV', 'sounding_temperature',
+                 'hp_semisupervised', 'hp_fhc_summer', 'hp_fhc_winter']
+X_GRID_LIMITS = (-20_000., 20_000.)
+Y_GRID_LIMITS = (-20_000., 20_000.)
+Z_GRID_LIMITS = (500., 5_000.)
+GRID_RESOLUTION = 250
+ADDITIONAL_FIELDS = ["corrected_reflectivity"]
+
+# Metadata constants
+RADAR_NAME = 'gucxprecipradar'
+ATTRIBUTIONS = (
+    "This data is collected by the ARM Climate Research facility. Radar system is operated by the radar "
+    "engineering team radar@arm.gov and the data is processed by the precipitation radar products team."
+)
+VAP_NAME = 'hp'
+PROCESS_VERSION = "HP v1.0"
+KNOWN_ISSUES = (
+    "CMAC issues like, false phidp jumps, and some snow below melting layer, may affect classification. "
+    "The Semisupervised method and fuzzy logic methods do not agree very well near melting layer."
+)
+INPUT_DATASTREAM = 'xprecipradarcmacppi'
+DEVELOPERS = (
+    "Bhupendra Raut, ANL; Robert Jackson, ANL; Zachary Sherman, ANL; Maxwell Grover, ANL; Joseph OBrien, ANL"
+)
+DATASTREAM = "gucxprecipradarhpS2.c1"
+PLATFORM_ID = "xprecipradarhp"
+DOD_VERSION = "xprecipradarhp-c1-1.0"
+DOI = "xxxxxx"
+
 # Mappings for CSU Summer, Winter, and Py-ART classifications to HydroPhase (hp)
 csu_summer_to_hp = np.array([0, 1, 1, 2, 2, 4, 2, 3, 3, 3, 1])
 csu_winter_to_hp = np.array([0, 2, 2, 2, 2, 4, 3, 1])
 pyart_to_hp = np.array([0, 2, 2, 1, 3, 1, 2, 4, 4, 3])
 
 def setup_logging(output_dir):
-    log_file = os.path.join(output_dir, "hp_processing.log")
+    log_file = os.path.join(output_dir, LOG_FILE_NAME)
     logging.basicConfig(filename=log_file, level=logging.INFO,
                         format='%(asctime)s %(message)s', filemode='w')
     return log_file
@@ -25,19 +60,17 @@ def unprocessed_files(files, output_dir):
     unprocessed = []
     for file in files:
         basename = os.path.basename(file)
-        output_file = basename.replace('gucxprecipradarcmacppiS2.c1', 'gucxprecipradarcmacppihpS2.c1')
+        output_file = basename.replace(INPUT_FILE_PATTERN, OUTPUT_FILE_PATTERN)
         output_path = os.path.join(output_dir, output_file)
         if not os.path.exists(output_path):
             unprocessed.append(file)
     return unprocessed
-
 
 def read_radar(file, sweep=None):
     radar = pyart.io.read(file)
     if sweep is not None:
         radar = radar.extract_sweeps([sweep])
     return radar
-
 
 def classify_summer(radar):
     logging.info("Running CSU Summer classification")
@@ -81,7 +114,7 @@ def classify_pyart(radar):
 
 def add_classification_to_radar(classified_data, radar, field_name, description):
     logging.info(f"Adding field: {field_name} to radar obj")
-    fill_value = -32768
+    fill_value = FILL_VALUE
     masked_data = np.ma.asanyarray(classified_data)
     masked_data.mask = masked_data == fill_value
     dz_field = 'DBZ' if 'winter' in field_name else 'corrected_reflectivity'
@@ -101,12 +134,8 @@ def add_classification_to_radar(classified_data, radar, field_name, description)
     radar.add_field(field_name, field_dict, replace_existing=True)
 
 def filter_fields(radar):
-    fields = ['corrected_reflectivity', 'corrected_differential_reflectivity',
-              'corrected_specific_diff_phase', 'RHOHV', 'sounding_temperature',
-              'hp_semisupervised', 'hp_fhc_summer', 'hp_fhc_winter']
-    radar.fields = {k: radar.fields[k] for k in fields if k in radar.fields}
+    radar.fields = {k: radar.fields[k] for k in FILTER_FIELDS if k in radar.fields}
     return radar
-
 
 # taken from MAx's script for gridding for Squire
 # Setup a Helper Function and Configure our Grid
@@ -116,13 +145,11 @@ def compute_number_of_points(extent, resolution):
     """
     return int((extent[1] - extent[0])/resolution)
 
-
 def grid_radar(radar,
-               x_grid_limits=(-20_000.,20_000.),
-               y_grid_limits=(-20_000.,20_000.),
-               z_grid_limits = (500.,5_000.),
-               grid_resolution = 250,
-               
+               x_grid_limits=X_GRID_LIMITS,
+               y_grid_limits=Y_GRID_LIMITS,
+               z_grid_limits=Z_GRID_LIMITS,
+               grid_resolution=GRID_RESOLUTION,
                ):
     """
     Grid the radar using some provided parameters
@@ -143,7 +170,7 @@ def grid_radar(radar,
                                      )
     return grid.to_xarray()
 
-def subset_lowest_vertical_level(ds, additional_fields=["corrected_reflectivity"]):
+def subset_lowest_vertical_level(ds, additional_fields=ADDITIONAL_FIELDS):
     """
     Filter the dataset based on the lowest vertical level
     """
@@ -161,42 +188,30 @@ def subset_lowest_vertical_level(ds, additional_fields=["corrected_reflectivity"
     
     return subset_ds
 
-
-
 def update_metadata(ds):
     # Update available fields
     available_fields = list(ds.data_vars.keys())
     ds.attrs['field_names'] = ', '.join(available_fields)
     
     # Update metadata
-    ds.attrs['radar_name'] = 'gucxprecipradar'
+    ds.attrs['radar_name'] = RADAR_NAME
     current_time = subprocess.check_output(['date'], encoding='utf-8').strip()  # Use `date` for system time
     system_info = subprocess.check_output(['uname', '-n'], encoding='utf-8').strip()
     ds.attrs['history'] = f"created by Bhupendra Raut on {current_time} on: {system_info}"
     
-    ds.attrs['attributions'] = (
-        "This data is collected by the ARM Climate Research facility. Radar system is operated by the radar "
-        "engineering team radar@arm.gov and the data is processed by the precipitation radar products team."
-    )
-    ds.attrs['vap_name'] = 'hp'
-    ds.attrs['process_version'] = "HP v1.0"
-    ds.attrs['known_issues'] = (
-        "CMAC issues like, false phidp jumps, and some snow below melting layer, may affect classification. "
-        "The Semisupervised method and fuzzy logic methods do not agree very well near melting layer."
-    )
-    ds.attrs['input_datastream'] = 'xprecipradarcmacppi'
-    ds.attrs['developers'] = (
-        "Bhupendra Raut, ANL; Robert Jackson, ANL; Zachary Sherman, ANL; Maxwell Grover, ANL; Joseph OBrien, ANL"
-    )
-    ds.attrs['datastream'] = "gucxprecipradarhpS2.c1"
-    ds.attrs['platform_id'] = "xprecipradarhp"
-    ds.attrs['dod_version'] = "xprecipradarhp-c1-1.0"
-    ds.attrs['doi'] = "xxxxxx"
+    ds.attrs['attributions'] = ATTRIBUTIONS
+    ds.attrs['vap_name'] = VAP_NAME
+    ds.attrs['process_version'] = PROCESS_VERSION
+    ds.attrs['known_issues'] = KNOWN_ISSUES
+    ds.attrs['input_datastream'] = INPUT_DATASTREAM
+    ds.attrs['developers'] = DEVELOPERS
+    ds.attrs['datastream'] = DATASTREAM
+    ds.attrs['platform_id'] = PLATFORM_ID
+    ds.attrs['dod_version'] = DOD_VERSION
+    ds.attrs['doi'] = DOI
     
     # Add the command line used to run the script
     ds.attrs['command_line'] = " ".join(sys.argv)
-
-
 
 def make_squire_grid(radar):
     # Grid the radar ppi data
@@ -207,7 +222,6 @@ def make_squire_grid(radar):
     update_metadata(ds)
     
     return ds
-
 
 def process_files(files, year, month, scheme, output_dir):
     os.makedirs(output_dir, exist_ok=True)
@@ -223,7 +237,7 @@ def process_files(files, year, month, scheme, output_dir):
         filter_fields(radar)
 
         out_ds = make_squire_grid(radar)
-        output_file = os.path.join(output_dir, os.path.basename(file).replace('gucxprecipradarcmacppiS2.c1', 'gucxprecipradarcmacppihpS2.c1'))
+        output_file = os.path.join(output_dir, os.path.basename(file).replace(INPUT_FILE_PATTERN, OUTPUT_FILE_PATTERN))
         out_ds.to_netcdf(output_file)
         logging.info(f"Saved file to {output_file}")
         del radar
@@ -250,7 +264,6 @@ def main():
 
     logging.info(f"Starting processing for year={year}, month={month}, season={season}")
     logging.info(f"Found {len(files_to_process)} files to process.")
-
 
     if files_to_process:
         process_files(files_to_process, year, month, season, output_dir)
