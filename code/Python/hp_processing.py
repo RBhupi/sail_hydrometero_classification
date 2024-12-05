@@ -162,13 +162,8 @@ def subset_lowest_vertical_level(ds, additional_fields=["corrected_reflectivity"
     return subset_ds
 
 
-def make_squire_grid(radar):
-    # Grid the radar data
-    ds = grid_radar(radar)
-    
-    # Subset the lowest vertical level
-    ds = subset_lowest_vertical_level(ds)
-    
+
+def update_metadata(ds):
     # Update available fields
     available_fields = list(ds.data_vars.keys())
     ds.attrs['field_names'] = ', '.join(available_fields)
@@ -200,6 +195,16 @@ def make_squire_grid(radar):
     
     # Add the command line used to run the script
     ds.attrs['command_line'] = " ".join(sys.argv)
+
+
+
+def make_squire_grid(radar):
+    # Grid the radar ppi data
+    ds = grid_radar(radar)
+    # Subset the lowest vertical level
+    ds = subset_lowest_vertical_level(ds)
+    # update metadata
+    update_metadata(ds)
     
     return ds
 
@@ -222,7 +227,6 @@ def process_files(files, year, month, scheme, output_dir):
         out_ds.to_netcdf(output_file)
         logging.info(f"Saved file to {output_file}")
         del radar
-        del ds
         del out_ds
         gc.collect()
 
