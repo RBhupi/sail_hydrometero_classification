@@ -56,11 +56,9 @@ csu_summer_to_hp = np.array([0, 1, 1, 2, 2, 4, 2, 3, 3, 3, 1])
 csu_winter_to_hp = np.array([0, 2, 2, 2, 2, 4, 3, 1])
 pyart_to_hp = np.array([0, 2, 2, 1, 3, 1, 2, 4, 4, 3])
 
-def setup_logging(output_dir):
-    log_file = os.path.join(output_dir, LOG_FILE_NAME)
-    logging.basicConfig(filename=log_file, level=logging.INFO,
-                        format='%(asctime)s %(message)s', filemode='w')
-    return log_file
+logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(message)s',
+                        handlers=[logging.StreamHandler(sys.stdout)])
 
 def unprocessed_files(files, output_dir):
     unprocessed = []
@@ -231,7 +229,6 @@ def make_squire_grid(radar):
 
 def process_files(files, year, month, scheme, output_dir):
     os.makedirs(output_dir, exist_ok=True)
-    setup_logging(output_dir)
     for file in files:
         logging.info(f"Processing file: {file} with scheme={scheme}")
         radar = read_radar(file)

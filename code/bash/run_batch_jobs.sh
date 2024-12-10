@@ -1,7 +1,7 @@
 #!/bin/bash
 
 year=2022  
-months=(1 8)  # months to process
+months=(1 2 3 4 5 6 7 8 9 10 11 12)  # months to process
 data_dir="/gpfs/wolf2/arm/atm124/world-shared/gucxprecipradarcmacS2.c1/ppi/"
 output_dir="/gpfs/wolf2/arm/atm124/proj-shared/gucxprecipradarhpS2.c1/"
 
