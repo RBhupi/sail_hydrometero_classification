@@ -230,6 +230,7 @@ def make_squire_grid(radar):
 def process_files(files, year, month, scheme, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     for file in files:
+        file_start_time = datetime.now()
         logging.info(f"Processing file: {file} with scheme={scheme}")
         radar = read_radar(file)
         if scheme == 'summer':
@@ -245,9 +246,15 @@ def process_files(files, year, month, scheme, output_dir):
         logging.info(f"Saved file to {output_file}")
         del radar
         del out_ds
-        gc.collect()
+        #gc.collect()
+        file_end_time = datetime.now()
+        logging.info(f"Finished processing file: {file}")
+        logging.info(f"Time taken for file: {file_end_time - file_start_time}")
 
 def main():
+    start_time = datetime.now()
+    logging.info(f"Script started at {start_time}")
+
     parser = argparse.ArgumentParser(description="Process radar files for a given year, month, and classification scheme")
     parser.add_argument("year", type=str, help="Year of the data (YYYY)")
     parser.add_argument("month", type=str, help="Month of the data (MM)")
@@ -272,6 +279,10 @@ def main():
         process_files(files_to_process, year, month, season, output_dir)
     else:
         logging.info(f"No files to process. All files already processed or directory empty.")
+    
+    end_time = datetime.now()
+    logging.info(f"Script finished at {end_time}")
+    logging.info(f"Total time taken: {end_time - start_time}")
 
 if __name__ == "__main__":
     main()
